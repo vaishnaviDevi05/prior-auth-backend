@@ -579,6 +579,14 @@ if "notes_input" not in st.session_state:
 if "policy_input" not in st.session_state:
     st.session_state.policy_input = st.session_state.policy
 
+if "pending_loaded_notes" not in st.session_state:
+    st.session_state.pending_loaded_notes = None
+
+if st.session_state.pending_loaded_notes is not None:
+    st.session_state.notes = st.session_state.pending_loaded_notes
+    st.session_state.notes_input = st.session_state.pending_loaded_notes
+    st.session_state.pending_loaded_notes = None
+
 
 with st.sidebar:
     st.markdown("## Session")
@@ -708,9 +716,8 @@ with tab_intake:
                     pid = selected.split(" - ")[0]
                     try:
                         patient, conds, obs = load_patient(pid)
-                        st.session_state.notes = build_notes(patient, conds, obs)
-                        st.session_state.notes_input = st.session_state.notes
-                        st.success("Patient notes were loaded into the case.")
+                        st.session_state.pending_loaded_notes = build_notes(patient, conds, obs)
+                        st.rerun()
                     except Exception as exc:
                         st.error(f"Failed to load patient: {exc}")
 
