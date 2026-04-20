@@ -588,8 +588,8 @@ st.markdown(
   <div class="hero-grid">
     <div>
       <div class="eyebrow">Prior Authorization Review Assistant</div>
-      <h1>AuthSight</h1>
-      <p>Review clinical notes against policy criteria, optionally enrich the case with public FHIR data, and generate a structured recommendation that shows whether the app is using a real-time Azure call or demo mode.</p>
+      <h1>Prior Auth Review Assistant</h1>
+      <p>Review clinical notes against policy criteria</p>
     </div>
     <div class="metric-grid">
       <div class="metric-card">
