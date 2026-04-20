@@ -1,0 +1,137 @@
+SAMPLE CASES FOR AI PRIOR AUTHORIZATION ASSISTANT
+==================================================
+
+POSITIVE CASES (Should be APPROVED)
+====================================
+
+CASE 1: Lumbar MRI - APPROVE
+-----------------------------
+Procedure: MRI Lumbar Spine without contrast (CPT 72148)
+
+Clinical Notes:
+Patient: John Smith, 52M
+Chief Complaint: Chronic low back pain radiating to left leg for 8 weeks
+Duration: 8 weeks
+Severity: 8/10 pain, interferes with work and daily activities
+Symptoms: Persistent LBP with left leg radiculopathy, worse with sitting/standing
+Treatments: 6 weeks physical therapy (PT progress notes show 30% improvement), ibuprofen 800mg TID x 6 weeks, gabapentin trial
+Exam Findings: Positive straight leg raise at 45°, decreased sensation L4 dermatome, mild left-sided weakness
+Prior Imaging: X-ray shows disc space narrowing L4-L5
+Referring Physician: Dr. Robert Chen, Orthopedic Surgery
+
+Policy Text:
+Covered: LBP ≥6 weeks with failed conservative therapy (PT ≥4 weeks + medications), neurological deficits, pre-surgical planning
+Required: PT notes, medication documentation, exam findings
+
+Expected: APPROVE - Meets all criteria (duration, failed conservative therapy, neurological findings, surgical planning)
+
+CASE 2: Brain MRI - APPROVE
+----------------------------
+Procedure: MRI Brain without contrast (CPT 70551)
+
+Clinical Notes:
+Patient: Sarah Johnson, 45F
+Chief Complaint: New onset severe headaches with visual changes
+Duration: 3 weeks
+Severity: 9/10, daily headaches with aura
+Symptoms: Throbbing unilateral headaches, photophobia, new visual scotomas, occasional nausea
+Treatments: Sumatriptan 100mg PRN (partial relief), propranolol 80mg daily x 2 weeks (minimal effect)
+Exam Findings: Normal neurological exam, no papilledema, normal vital signs
+Prior Imaging: None
+Referring Physician: Dr. Emily Wong, Neurology
+
+Policy Text:
+Covered: New headache with red flags (focal symptoms, visual changes), refractory to ≥2 medications
+Required: Detailed headache history, treatment trials, neurological exam
+
+Expected: APPROVE - Meets criteria (red flags present, multiple medication failures, neurological evaluation)
+
+NEGATIVE CASES (Should be DENIED/PENDED)
+========================================
+
+CASE 3: Lumbar MRI - DENY
+--------------------------
+Procedure: MRI Lumbar Spine without contrast (CPT 72148)
+
+Clinical Notes:
+Patient: Mary Davis, 35F
+Chief Complaint: Mild low back pain after lifting boxes
+Duration: 2 weeks
+Severity: 3/10 occasional discomfort
+Symptoms: Intermittent LBP, no radiation, improves with rest
+Treatments: Ibuprofen 400mg as needed, heat therapy at home
+Exam Findings: Normal strength, sensation, reflexes; no radicular signs
+Prior Imaging: None
+Referring Physician: Dr. Primary Care
+
+Policy Text:
+Covered: LBP ≥6 weeks with failed conservative therapy (PT ≥4 weeks + medications), neurological deficits, pre-surgical planning
+Not Covered: Acute LBP <6 weeks without red flags
+Required: PT notes, medication documentation, exam findings
+
+Expected: DENY - Acute pain <6 weeks, no failed conservative therapy, no neurological deficits
+
+CASE 4: Brain MRI - PEND
+-------------------------
+Procedure: MRI Brain without contrast (CPT 70551)
+
+Clinical Notes:
+Patient: Tom Wilson, 28M
+Chief Complaint: Tension headaches
+Duration: 6 months
+Severity: 5/10, occasional
+Symptoms: Bilateral band-like headaches, stress-related
+Treatments: Acetaminophen 500mg PRN
+Exam Findings: Normal neurological exam
+Prior Imaging: None
+Referring Physician: Dr. Primary Care
+
+Policy Text:
+Covered: New headache with red flags (focal symptoms, visual changes), refractory to ≥2 medications
+Not Covered: Primary headache disorders without red flags
+Required: Detailed headache history, treatment trials, neurological exam
+
+Expected: PEND - Missing information (inadequate treatment trials, no red flags documented, incomplete headache characterization)
+
+CASE 5: Cardiac Stress Test - APPROVE
+--------------------------------------
+Procedure: Stress Echocardiogram (CPT 93350)
+
+Clinical Notes:
+Patient: David Brown, 60M
+Chief Complaint: Chest pain on exertion
+Duration: 4 weeks
+Severity: 7/10 with physical activity
+Symptoms: Retrosternal chest pressure, resolves with rest, associated shortness of breath
+Treatments: Aspirin 81mg daily, nitroglycerin PRN, metoprolol 25mg daily
+Exam Findings: BP 140/85, HR 72, normal cardiac exam, no murmurs
+Prior Imaging: EKG normal, chest X-ray clear
+Referring Physician: Dr. Cardiology
+
+Policy Text:
+Covered: Chest pain with cardiac risk factors, abnormal stress test indications
+Required: Symptom description, risk factors, prior cardiac workup
+
+Expected: APPROVE - Meets criteria for cardiac evaluation with appropriate symptoms and workup
+
+CASE 6: Colonoscopy - DENY
+---------------------------
+Procedure: Screening Colonoscopy (CPT 45378)
+
+Clinical Notes:
+Patient: Lisa Green, 45F
+Chief Complaint: Routine screening
+Duration: N/A
+Severity: N/A
+Symptoms: Asymptomatic
+Treatments: None
+Exam Findings: Normal physical exam
+Prior Imaging: None
+Referring Physician: Dr. Primary Care
+
+Policy Text:
+Covered: Age ≥50, or high-risk features (family history, polyps, IBD)
+Not Covered: Routine screening before age 50 without risk factors
+Required: Age verification, risk factor assessment
+
+Expected: DENY - Age 45, no documented risk factors for early screening
