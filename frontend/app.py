@@ -400,12 +400,17 @@ def apply_demo_case():
     st.session_state.procedure = DEMO_DATA["procedure"]
     st.session_state.notes = DEMO_DATA["clinical_notes"]
     st.session_state.policy = DEMO_DATA["policy_text"]
+    st.session_state.procedure_input = st.session_state.procedure
+    st.session_state.notes_input = st.session_state.notes
+    st.session_state.policy_input = st.session_state.policy
 
 
 def apply_policy_template(name):
     st.session_state.policy = POLICY_TEMPLATES[name]
     if not st.session_state.procedure:
         st.session_state.procedure = name
+    st.session_state.procedure_input = st.session_state.procedure
+    st.session_state.policy_input = st.session_state.policy
 
 
 def get_inference_status(use_mock):
@@ -565,6 +570,15 @@ for key, value in {
     if key not in st.session_state:
         st.session_state[key] = value
 
+if "procedure_input" not in st.session_state:
+    st.session_state.procedure_input = st.session_state.procedure
+
+if "notes_input" not in st.session_state:
+    st.session_state.notes_input = st.session_state.notes
+
+if "policy_input" not in st.session_state:
+    st.session_state.policy_input = st.session_state.policy
+
 
 with st.sidebar:
     st.markdown("## Session")
@@ -647,14 +661,14 @@ with tab_intake:
 """,
             unsafe_allow_html=True,
         )
-        procedure_value = st.text_input(
+        st.text_input(
             "Procedure or service",
-            value=st.session_state.procedure,
+            key="procedure_input",
             placeholder="MRI Lumbar Spine without contrast (CPT 72148)",
         )
-        notes_value = st.text_area(
+        st.text_area(
             "Clinical notes",
-            value=st.session_state.notes,
+            key="notes_input",
             height=300,
             placeholder="Paste symptoms, failed therapies, objective findings, prior imaging, and referral detail.",
         )
@@ -669,9 +683,9 @@ with tab_intake:
 """,
             unsafe_allow_html=True,
         )
-        policy_value = st.text_area(
+        st.text_area(
             "Policy text",
-            value=st.session_state.policy,
+            key="policy_input",
             height=220,
             placeholder="Paste the policy criteria used for the review.",
         )
@@ -695,14 +709,14 @@ with tab_intake:
                     try:
                         patient, conds, obs = load_patient(pid)
                         st.session_state.notes = build_notes(patient, conds, obs)
-                        notes_value = st.session_state.notes
+                        st.session_state.notes_input = st.session_state.notes
                         st.success("Patient notes were loaded into the case.")
                     except Exception as exc:
                         st.error(f"Failed to load patient: {exc}")
 
-    st.session_state.procedure = procedure_value
-    st.session_state.notes = notes_value
-    st.session_state.policy = policy_value
+    st.session_state.procedure = st.session_state.procedure_input
+    st.session_state.notes = st.session_state.notes_input
+    st.session_state.policy = st.session_state.policy_input
 
     analyze = st.button("Run Prior Authorization Analysis", use_container_width=True)
 
