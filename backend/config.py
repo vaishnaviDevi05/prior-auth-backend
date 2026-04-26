@@ -3,6 +3,28 @@ import os
 from pathlib import Path
 
 
+PLACEHOLDER_MARKERS = (
+    "YOUR-RESOURCE",
+    "YOUR-KEY",
+    "your-resource",
+    "your-key",
+    "example",
+    "changeme",
+)
+
+
+def _is_real_config_value(value: str) -> bool:
+    if not value:
+        return False
+
+    normalized = value.strip()
+    if not normalized:
+        return False
+
+    upper_value = normalized.upper()
+    return not any(marker.upper() in upper_value for marker in PLACEHOLDER_MARKERS)
+
+
 def load_config():
     """Load configuration from backend/config.json and set environment variables."""
     try:
@@ -30,4 +52,4 @@ def is_configured() -> bool:
         "AZURE_OPENAI_DEPLOYMENT",
         "AZURE_OPENAI_API_VERSION",
     ]
-    return all(get_env_var(var) for var in required_vars)
+    return all(_is_real_config_value(get_env_var(var)) for var in required_vars)

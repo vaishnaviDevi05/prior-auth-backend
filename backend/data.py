@@ -108,3 +108,96 @@ MOCK_RESPONSE = {
     "turnaround_priority": "STANDARD",
     "estimated_review_time_minutes": 8,
 }
+
+MOCK_CASE_QA_RESPONSES = {
+    "why approve": (
+        "This case leans toward approval because the notes document 6 weeks of back pain, failed conservative treatment, "
+        "and a neurologic finding. Those points line up with the lumbar MRI policy. The main gaps are supporting documents, "
+        "not the core medical necessity story."
+    ),
+    "what is missing": (
+        "The biggest missing items are PT progress or discharge notes, clearer medication trial details, and a referring provider "
+        "attestation. Adding those would reduce follow-up and make the file easier to process straight through."
+    ),
+    "what should ops do next": (
+        "Ops should request the PT documentation and provider attestation first, then verify there was no MRI in the last 12 months. "
+        "Those steps close the main avoidable delays in this case."
+    ),
+}
+
+MOCK_WHAT_IF_RESPONSE = {
+    "updated_recommendation": "APPROVE",
+    "impact_level": "HIGH",
+    "would_change_decision": True,
+    "summary": "This update would make the case easier to approve and reduce follow-up work. It closes two of the biggest documentation gaps.",
+    "reasoning": [
+        "The hypothetical update adds missing support rather than repeating facts already in the note.",
+        "That makes the policy match cleaner and reduces the chance of a pend for documentation.",
+        "Ops can move with less provider outreach once the added record is in the file.",
+    ],
+    "ops_impact": "Reviewer confidence goes up and the case becomes more suitable for low-touch handling.",
+    "remaining_gaps": [
+        "Final provider attestation may still be needed depending on payer rules.",
+    ],
+}
+
+MOCK_EVIDENCE_MAP = {
+    "criteria_map": [
+        {
+            "criterion": "Persistent LBP >= 6 weeks with failure of conservative therapy (PT >= 4 weeks AND analgesic trial).",
+            "status": "MET",
+            "note_evidence": [
+                "Lower back pain radiating to the left leg for 6 weeks.",
+                "Completed 4 weeks of physical therapy.",
+                "Ibuprofen 600mg TID with minimal relief.",
+            ],
+            "reviewer_note": "The duration and conservative treatment requirements are both documented in the note.",
+        },
+        {
+            "criterion": "Neurological deficits (radiculopathy, motor weakness, bowel/bladder dysfunction).",
+            "status": "MET",
+            "note_evidence": [
+                "Mild weakness in left L4/L5 dermatome.",
+                "Positive straight leg raise at 45 degrees.",
+            ],
+            "reviewer_note": "The note contains neurologic findings consistent with radicular involvement.",
+        },
+        {
+            "criterion": "Red flag symptoms: unexplained weight loss, fever, history of malignancy.",
+            "status": "MISSING",
+            "note_evidence": [],
+            "reviewer_note": "No red flag symptoms are documented in the submitted note.",
+        },
+        {
+            "criterion": "Pre-surgical planning when clinical findings support surgical candidacy.",
+            "status": "PARTIAL",
+            "note_evidence": [
+                "Referring physician: Dr. Anand Rao, Orthopedic Surgery.",
+                "Urgency: clinically indicated for surgical planning.",
+            ],
+            "reviewer_note": "Surgical intent is suggested, but a formal attestation or plan is not included.",
+        },
+    ],
+    "documentation_map": [
+        {
+            "document": "Office visit notes documenting clinical findings.",
+            "status": "FOUND",
+            "evidence": "The case note includes symptoms, exam findings, prior imaging, and urgency.",
+        },
+        {
+            "document": "PT discharge summary or progress notes.",
+            "status": "NOT_FOUND",
+            "evidence": "PT is mentioned, but the actual therapy note is not attached.",
+        },
+        {
+            "document": "Medication trial documentation.",
+            "status": "FOUND",
+            "evidence": "Ibuprofen trial is documented, though dates could be more explicit.",
+        },
+        {
+            "document": "Referring physician attestation.",
+            "status": "NOT_FOUND",
+            "evidence": "Referring physician is named, but a signed attestation is not present.",
+        },
+    ],
+}

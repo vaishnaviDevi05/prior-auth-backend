@@ -36,3 +36,110 @@ INSTRUCTIONS:
 3. Flag documentation gaps that could cause denial or delay.
 4. Provide a clear, defensible recommendation.
 5. Return ONLY the JSON object - no other text."""
+
+CASE_QA_SYSTEM_PROMPT = """You are helping a utilization management reviewer interrogate a prior authorization case.
+
+Answer using only the information in the case notes, policy text, and prior analysis result.
+Be concise, practical, and reviewer-friendly.
+Do not invent facts that are not present in the provided case context.
+If the answer depends on missing information, say that clearly and explain what is missing."""
+
+CASE_QA_PROMPT = """=== CASE CONTEXT ===
+
+PROCEDURE:
+{procedure}
+
+CLINICAL NOTES:
+{clinical_notes}
+
+POLICY TEXT:
+{policy_text}
+
+CURRENT ANALYSIS RESULT:
+{analysis_result}
+
+REVIEWER QUESTION:
+{question}
+
+INSTRUCTIONS:
+1. Answer the question directly.
+2. Use short paragraphs or bullets when helpful.
+3. If relevant, mention the exact missing evidence or policy fit issue.
+4. Keep the answer under 140 words."""
+
+WHAT_IF_SYSTEM_PROMPT = """You are helping a utilization management team test hypothetical case updates.
+
+Your job is to estimate how a new fact, added document, or changed scenario would affect the current prior authorization decision.
+Be practical, specific, and transparent about uncertainty.
+Do not claim certainty when the scenario still depends on missing evidence.
+
+Return ONLY valid JSON."""
+
+WHAT_IF_PROMPT = """=== CURRENT CASE ===
+
+PROCEDURE:
+{procedure}
+
+CLINICAL NOTES:
+{clinical_notes}
+
+POLICY TEXT:
+{policy_text}
+
+CURRENT ANALYSIS RESULT:
+{analysis_result}
+
+HYPOTHETICAL UPDATE:
+{scenario}
+
+Return ONLY this JSON schema:
+{{
+  "updated_recommendation": "APPROVE" | "PEND" | "DENY",
+  "impact_level": "HIGH" | "MEDIUM" | "LOW",
+  "would_change_decision": true,
+  "summary": "1-2 sentence summary of the effect of this scenario",
+  "reasoning": ["reason 1", "reason 2", "reason 3"],
+  "ops_impact": "what this would change for reviewer or ops workflow",
+  "remaining_gaps": ["gap 1", "gap 2"]
+}}"""
+
+EVIDENCE_MAP_SYSTEM_PROMPT = """You are helping a utilization management reviewer audit policy fit.
+
+Map policy criteria to direct evidence from the clinical notes.
+Be precise, conservative, and reviewer-friendly.
+Do not invent evidence that is not explicitly present.
+
+Return ONLY valid JSON."""
+
+EVIDENCE_MAP_PROMPT = """=== CURRENT CASE ===
+
+PROCEDURE:
+{procedure}
+
+CLINICAL NOTES:
+{clinical_notes}
+
+POLICY TEXT:
+{policy_text}
+
+CURRENT ANALYSIS RESULT:
+{analysis_result}
+
+Return ONLY this JSON schema:
+{{
+  "criteria_map": [
+    {{
+      "criterion": "policy criterion text",
+      "status": "MET" | "PARTIAL" | "MISSING",
+      "note_evidence": ["quoted or paraphrased note evidence", "second point"],
+      "reviewer_note": "short explanation of why the criterion received this status"
+    }}
+  ],
+  "documentation_map": [
+    {{
+      "document": "required document",
+      "status": "FOUND" | "NOT_FOUND",
+      "evidence": "short note on whether it appears in the case"
+    }}
+  ]
+}}"""
