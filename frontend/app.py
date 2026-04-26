@@ -1,4 +1,4 @@
-import json
+﻿import json
 import sys
 from pathlib import Path
 
@@ -13,7 +13,8 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from backend import config as backend_config
-from backend.ai_logic import analyze_pa_request
+from backend import review_tools
+from backend.ai_logic import analyze_pa_request, build_evidence_map
 from backend.data import DEMO_DATA, POLICY_TEMPLATES
 
 FHIR_SETTINGS = {
@@ -216,6 +217,50 @@ h1, h2, h3, h4 {
     font-size: 0.92rem;
 }
 
+.step-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.8rem;
+    margin-bottom: 0.9rem;
+}
+
+.step-card {
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 0.95rem 1rem;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.7rem;
+    height: 1.7rem;
+    border-radius: 999px;
+    background: rgba(13, 122, 111, 0.12);
+    color: var(--accent);
+    font-family: "Manrope", sans-serif;
+    font-weight: 800;
+    margin-bottom: 0.55rem;
+}
+
+.step-title {
+    font-family: "Manrope", sans-serif;
+    font-size: 1rem;
+    color: var(--text);
+}
+
+.step-copy {
+    margin-top: 0.25rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.action-card {
+    background: linear-gradient(135deg, rgba(13, 122, 111, 0.08), rgba(23, 50, 77, 0.08));
+}
+
 .stTextInput input, .stTextArea textarea, .stSelectbox select {
     border-radius: 16px !important;
     border: 1px solid rgba(23, 50, 77, 0.12) !important;
@@ -253,16 +298,28 @@ div.stButton > button {
 .pill-low { background: rgba(162, 63, 56, 0.14); color: var(--danger); }
 
 .result-card {
-    padding: 1.1rem 1.15rem;
-    margin-bottom: 1rem;
+    padding: 1rem 1.05rem;
+    margin-bottom: 0.85rem;
 }
 
 .result-header {
     display: flex;
     justify-content: space-between;
-    gap: 1rem;
+    gap: 0.8rem;
     align-items: flex-start;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.55rem;
+}
+
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.15rem;
+}
+
+.list-header .card-label {
+    margin-bottom: 0;
 }
 
 .card-label {
@@ -277,7 +334,7 @@ div.stButton > button {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.8rem;
-    margin-bottom: 0.8rem;
+    margin-bottom: 0.6rem;
 }
 
 .stat-box {
@@ -297,22 +354,22 @@ div.stButton > button {
 
 .sub-card {
     background: rgba(255, 255, 255, 0.84);
-    padding: 0.9rem 1rem;
-    margin-top: 0.8rem;
+    padding: 0.8rem 0.9rem;
+    margin-top: 0.55rem;
 }
 
 .sub-card ul {
-    margin: 0.55rem 0 0;
+    margin: 0.2rem 0 0;
     padding-left: 1.1rem;
 }
 
 .sub-card li {
-    margin-bottom: 0.42rem;
+    margin-bottom: 0.28rem;
     color: var(--text);
 }
 
 .footer-note {
-    margin-top: 0.3rem;
+    margin-top: 0.18rem;
     color: var(--muted);
     font-size: 0.92rem;
 }
@@ -324,7 +381,7 @@ div.stButton > button {
 }
 
 @media (max-width: 1100px) {
-    .hero-grid, .metric-grid, .status-grid, .stats {
+    .hero-grid, .metric-grid, .status-grid, .stats, .step-grid {
         grid-template-columns: 1fr;
     }
 }
@@ -413,6 +470,23 @@ def apply_policy_template(name):
     st.session_state.policy_input = st.session_state.policy
 
 
+def read_uploaded_text(uploaded_file):
+    if uploaded_file is None:
+        return ""
+
+    suffix = Path(uploaded_file.name).suffix.lower()
+    raw_text = uploaded_file.getvalue().decode("utf-8", errors="ignore")
+
+    if suffix == ".json":
+        try:
+            payload = json.loads(raw_text)
+            if isinstance(payload, dict):
+                return payload.get("clinical_notes") or payload.get("policy_text") or json.dumps(payload, indent=2)
+        except Exception:
+            return raw_text
+    return raw_text
+
+
 def get_inference_status(use_mock):
     azure_ready = backend_config.is_configured()
     deployment = backend_config.get_env_var("AZURE_OPENAI_DEPLOYMENT", "")
@@ -450,6 +524,16 @@ def run_analysis(procedure, clinical_notes, policy_text, use_mock):
     return result
 
 
+def run_evidence_map(procedure, clinical_notes, policy_text, analysis_result, use_mock):
+    return build_evidence_map(
+        procedure=procedure,
+        clinical_notes=clinical_notes,
+        policy_text=policy_text,
+        analysis_result=analysis_result,
+        use_mock=use_mock,
+    )
+
+
 def recommendation_pill(value):
     mapping = {
         "APPROVE": "pill-approve",
@@ -469,23 +553,19 @@ def match_pill(value):
 
 
 def render_result(result, use_mock):
-    status = get_inference_status(use_mock)
     recommendation = result.get("recommendation", "PEND")
     policy_match = result.get("policy_match", "MEDIUM")
     confidence = int(result.get("confidence_score", 0) or 0)
     eta = result.get("estimated_review_time_minutes", "?")
     priority = result.get("turnaround_priority", "STANDARD")
-    source = result.get("source", "mock" if use_mock else "live")
-    source_label = "Azure realtime call" if source == "live" else "Demo response"
 
     st.markdown(
         f"""
 <div class="result-card">
   <div class="result-header">
     <div>
-      <div class="card-label">Decision Summary</div>
-      <h3 style="margin:0;">Prior Authorization Recommendation</h3>
-      <div class="footer-note">{source_label}</div>
+      <div class="card-label">Review Result</div>
+      <h3 style="margin:0;">Recommendation</h3>
     </div>
     <div class="pill {recommendation_pill(recommendation)}">{recommendation}</div>
   </div>
@@ -505,16 +585,11 @@ def render_result(result, use_mock):
     </div>
   </div>
   <div class="sub-card">
-    <div class="card-label">Inference Status</div>
-    <div class="pill {status["pill"]}">{status["label"]}</div>
-    <div class="footer-note">{status["detail"]}</div>
-  </div>
-  <div class="sub-card">
-    <div class="card-label">Clinical Summary</div>
+    <div class="card-label">Summary</div>
     <div>{result.get("summary", "No summary available.")}</div>
   </div>
   <div class="sub-card">
-    <div class="card-label">Recommendation Rationale</div>
+    <div class="card-label">Why</div>
     <div>{result.get("recommendation_rationale", "No recommendation rationale available.")}</div>
   </div>
 </div>
@@ -527,7 +602,7 @@ def render_result(result, use_mock):
         st.markdown(
             f"""
 <div class="sub-card">
-  <div class="result-header" style="margin-bottom:0;">
+  <div class="list-header">
     <div class="card-label">Key Findings</div>
     <div class="pill {match_pill(policy_match)}">{policy_match} match</div>
   </div>
@@ -540,23 +615,17 @@ def render_result(result, use_mock):
         )
     with right:
         st.markdown(
-            "<div class='sub-card'><div class='card-label'>Missing Information</div><ul>"
+            "<div class='sub-card'><div class='card-label'>Missing</div><ul>"
             + "".join(f"<li>{item}</li>" for item in result.get("missing_information", []))
             + "</ul></div>",
             unsafe_allow_html=True,
         )
         st.markdown(
-            "<div class='sub-card'><div class='card-label'>Action Items</div><ul>"
+            "<div class='sub-card'><div class='card-label'>Next Steps</div><ul>"
             + "".join(f"<li>{item}</li>" for item in result.get("action_items", []))
             + "</ul></div>",
             unsafe_allow_html=True,
         )
-
-    st.download_button(
-        "Download analysis JSON",
-        data=json.dumps(result, indent=2),
-        file_name="pa_result.json",
-    )
 
 
 for key, value in {
@@ -566,6 +635,8 @@ for key, value in {
     "policy": "",
     "result": None,
     "patient_query": "",
+    "case_history": [],
+    "evidence_map": None,
 }.items():
     if key not in st.session_state:
         st.session_state[key] = value
@@ -590,7 +661,11 @@ if st.session_state.pending_loaded_notes is not None:
 
 with st.sidebar:
     st.markdown("## Session")
-    use_mock = st.toggle("Demo mode", value=False, help="When off, the app uses the configured Azure deployment.")
+    use_mock = st.toggle(
+        "Demo mode",
+        value=not backend_config.is_configured(),
+        help="When off, the app uses the configured Azure deployment.",
+    )
 
     st.markdown("### Quick Fill")
     if st.button("Load Demo Case", use_container_width=True):
@@ -600,29 +675,42 @@ with st.sidebar:
     if selected_policy != "Select a template":
         apply_policy_template(selected_policy)
 
+    if st.session_state.case_history:
+        st.markdown("### Recent Cases")
+        for entry in st.session_state.case_history[-3:][::-1]:
+            st.markdown(
+                f"""
+<div class="sub-card" style="margin-top:0.55rem;">
+  <div class="card-label">{entry["timestamp"]}</div>
+  <div><strong>{entry["procedure"]}</strong></div>
+  <div class="footer-note">{entry["recommendation"]} | {entry["confidence"]}% confidence | readiness {entry["readiness"]}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
 status = get_inference_status(use_mock)
 mode_value = "Live" if status["label"] == "Real-Time Azure" else "Demo"
-mode_detail = "Azure-backed recommendation flow" if mode_value == "Live" else "Stable mock output for demos"
+mode_detail = "Production path ready" if mode_value == "Live" else "Demo path ready"
 
 st.markdown(
     f"""
 <section class="hero">
   <div class="hero-grid">
     <div>
-      <div class="eyebrow">Prior Authorization Review Assistant</div>
-      <h1>Prior Auth Review Assistant</h1>
-      <p>Review clinical notes against policy criteria</p>
+      <h1>Prior Authorization review assistant</h1>
+      <p>This app helps a reviewer read the case, compare it to policy, and decide what should happen next.</p>
     </div>
     <div class="metric-grid">
       <div class="metric-card">
-        <div class="metric-label">Inference</div>
+        <div class="metric-label">Mode</div>
         <div class="metric-value">{mode_value}</div>
         <div class="metric-sub">{mode_detail}</div>
       </div>
       <div class="metric-card">
-        <div class="metric-label">Audience</div>
-        <div class="metric-value">UM Teams</div>
-        <div class="metric-sub">Clinical reviewers, payer operations, utilization management</div>
+        <div class="metric-label">Built For</div>
+        <div class="metric-value">Review Teams</div>
+        <div class="metric-sub">Cleaner intake, faster routing, and clearer next steps</div>
       </div>
     </div>
   </div>
@@ -635,19 +723,19 @@ st.markdown(
     f"""
 <div class="status-grid">
   <div class="status-card">
-    <div class="status-label">Inference Status</div>
+    <div class="status-label">What You Get</div>
+    <div class="status-value">Decision Support</div>
+    <div class="status-sub">Recommendation, missing items, and next-step routing in one view.</div>
+  </div>
+  <div class="status-card">
+    <div class="status-label">Workflow Benefit</div>
+    <div class="status-value">Less Rework</div>
+    <div class="status-sub">Cuts manual sorting and makes provider follow-up more consistent.</div>
+  </div>
+  <div class="status-card">
+    <div class="status-label">Current Setup</div>
     <div class="status-value">{status["label"]}</div>
     <div class="status-sub">{status["detail"]}</div>
-  </div>
-  <div class="status-card">
-    <div class="status-label">Azure Deployment</div>
-    <div class="status-value">{status["deployment"]}</div>
-    <div class="status-sub">Shown only to indicate whether real-time Azure inference is configured.</div>
-  </div>
-  <div class="status-card">
-    <div class="status-label">Execution Path</div>
-    <div class="status-value">In-App Analysis</div>
-    <div class="status-sub">The deployed Streamlit app calls Azure directly without a separate backend service.</div>
   </div>
 </div>
 """,
@@ -657,6 +745,79 @@ st.markdown(
 tab_intake, tab_results = st.tabs(["Case Intake", "Review Output"])
 
 with tab_intake:
+    st.markdown(
+        """
+<div class="step-grid">
+  <div class="step-card">
+    <div class="step-number">1</div>
+    <div class="step-title">Start a case</div>
+    <div class="step-copy">Search or load sample data.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-number">2</div>
+    <div class="step-title">Review inputs</div>
+    <div class="step-copy">Procedure, notes, and policy.</div>
+  </div>
+  <div class="step-card">
+    <div class="step-number">3</div>
+    <div class="step-title">Get decision</div>
+    <div class="step-copy">Recommendation, routing, and follow-up.</div>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        """
+<div class="section-card">
+  <h3 class="section-title">Patient Search</h3>
+  <div class="section-copy">Pull sample patient context into the case.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+    search_left, search_right = st.columns([1.1, 0.9], gap="large")
+
+    with search_left:
+        name_query = st.text_input(
+            "Patient name search",
+            value=st.session_state.patient_query,
+            placeholder="Search by last name or full name",
+        )
+        if st.button("Search patients", use_container_width=True):
+            st.session_state.patient_query = name_query
+            try:
+                st.session_state.patients = search_patients(name_query)
+                st.success(f"Found {len(st.session_state.patients)} patients.")
+            except Exception as exc:
+                st.error(f"FHIR search failed: {exc}")
+
+    with search_right:
+        st.markdown(
+            """
+<div class="sub-card" style="margin-top:0;">
+  <div class="card-label">Quick demo flow</div>
+  <div>Search, pick a patient, and prefill notes.</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        st.caption("For a quick walkthrough, use the demo case in the sidebar.")
+
+    if st.session_state.patients:
+        options = [f"{getattr(pat, 'id', 'unknown')} - {get_patient_name(pat)}" for pat in st.session_state.patients]
+        selected = st.selectbox("Search results", options, help="Choose a patient to load a short clinical summary into the notes field.")
+        if st.button("Load selected patient notes", use_container_width=True):
+            pid = selected.split(" - ")[0]
+            try:
+                patient, conds, obs = load_patient(pid)
+                st.session_state.pending_loaded_notes = build_notes(patient, conds, obs)
+                st.rerun()
+            except Exception as exc:
+                st.error(f"Failed to load patient: {exc}")
+
     left, right = st.columns([1.15, 0.85], gap="large")
 
     with left:
@@ -664,11 +825,18 @@ with tab_intake:
             """
 <div class="section-card">
   <h3 class="section-title">Clinical Intake</h3>
-  <div class="section-copy">Enter the requested procedure and the clinical notes that support medical necessity.</div>
+  <div class="section-copy">Core case details.</div>
 </div>
 """,
             unsafe_allow_html=True,
         )
+        uploaded_notes = st.file_uploader(
+            "Upload clinical notes",
+            type=["txt", "md", "json"],
+            help="Upload a plain text, markdown, or JSON note file to prefill the clinical notes field.",
+        )
+        if uploaded_notes is not None:
+            st.session_state.notes_input = read_uploaded_text(uploaded_notes)
         st.text_input(
             "Procedure or service",
             key="procedure_input",
@@ -686,11 +854,18 @@ with tab_intake:
             """
 <div class="section-card">
   <h3 class="section-title">Policy Criteria</h3>
-  <div class="section-copy">Paste payer policy language or select a template from the sidebar.</div>
+  <div class="section-copy">Policy text used for the decision.</div>
 </div>
 """,
             unsafe_allow_html=True,
         )
+        uploaded_policy = st.file_uploader(
+            "Upload policy text",
+            type=["txt", "md", "json"],
+            help="Upload payer criteria from a text, markdown, or JSON file.",
+        )
+        if uploaded_policy is not None:
+            st.session_state.policy_input = read_uploaded_text(uploaded_policy)
         st.text_area(
             "Policy text",
             key="policy_input",
@@ -698,33 +873,19 @@ with tab_intake:
             placeholder="Paste the policy criteria used for the review.",
         )
 
-        with st.expander("Optional FHIR enrichment", expanded=False):
-            st.markdown("Search the public HAPI FHIR server and load patient notes into this case.")
-            name_query = st.text_input("Patient name", value=st.session_state.patient_query, placeholder="Smith")
-            if st.button("Search patient", use_container_width=True):
-                st.session_state.patient_query = name_query
-                try:
-                    st.session_state.patients = search_patients(name_query)
-                    st.success(f"Found {len(st.session_state.patients)} patients.")
-                except Exception as exc:
-                    st.error(f"FHIR search failed: {exc}")
-
-            if st.session_state.patients:
-                options = [f"{getattr(pat, 'id', 'unknown')} - {get_patient_name(pat)}" for pat in st.session_state.patients]
-                selected = st.selectbox("Select patient", options)
-                if st.button("Load patient notes", use_container_width=True):
-                    pid = selected.split(" - ")[0]
-                    try:
-                        patient, conds, obs = load_patient(pid)
-                        st.session_state.pending_loaded_notes = build_notes(patient, conds, obs)
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(f"Failed to load patient: {exc}")
-
     st.session_state.procedure = st.session_state.procedure_input
     st.session_state.notes = st.session_state.notes_input
     st.session_state.policy = st.session_state.policy_input
 
+    st.markdown(
+        """
+<div class="section-card action-card">
+  <h3 class="section-title">Run Review</h3>
+  <div class="section-copy">Generate the decision and ops plan.</div>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
     analyze = st.button("Run Prior Authorization Analysis", use_container_width=True)
 
     if analyze:
@@ -740,20 +901,148 @@ with tab_intake:
             try:
                 result = run_analysis(**payload)
                 st.session_state.result = result
-                st.success("Analysis complete. Review Output now shows the recommendation.")
+                st.session_state.evidence_map = None
+                readiness = review_tools.build_readiness_report(
+                    st.session_state.procedure,
+                    st.session_state.notes,
+                    st.session_state.policy,
+                    result,
+                )
+                st.session_state.case_history.append(
+                    review_tools.build_case_history_entry(st.session_state.procedure, result, readiness)
+                )
+                st.success("Review complete. Open the results tab.")
             except Exception as exc:
                 st.error(f"Analysis request failed: {exc}")
 
 with tab_results:
     if st.session_state.result:
+        readiness = review_tools.build_readiness_report(
+            st.session_state.procedure,
+            st.session_state.notes,
+            st.session_state.policy,
+            st.session_state.result,
+        )
+        ops_summary = review_tools.build_ops_summary(
+            st.session_state.procedure,
+            st.session_state.notes,
+            st.session_state.policy,
+            st.session_state.result,
+            readiness,
+        )
+
         render_result(st.session_state.result, use_mock)
-    else:
+
+        route_col, followup_col = st.columns(2, gap="large")
+        with route_col:
+            st.markdown(
+                """
+<div class="section-card">
+  <h3 class="section-title">Routing</h3>
+  <div class="section-copy">Best next step for this case.</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            st.markdown(f"**Route:** {ops_summary['route']}")
+            st.write(ops_summary["route_reason"])
+            st.write(f"- Confidence: {int(st.session_state.result.get('confidence_score', 0) or 0)}%")
+            st.write(f"- Policy match: {st.session_state.result.get('policy_match', 'MEDIUM')}")
+            st.write(f"- Coverage: {ops_summary['documentation_coverage']}")
+            st.write(f"- Time saved: {ops_summary['manual_savings_minutes']} minutes")
+
+        with followup_col:
+            st.markdown(
+                """
+<div class="section-card">
+  <h3 class="section-title">Follow-Up</h3>
+  <div class="section-copy">What to request next.</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            if ops_summary["outreach_checklist"]:
+                for item in ops_summary["outreach_checklist"]:
+                    st.write(f"- {item}")
+            else:
+                st.write("- No follow-up needed.")
+            if readiness["gaps"]:
+                for item in readiness["gaps"][:2]:
+                    st.write(f"- Watch item: {item}")
+
         st.markdown(
             """
-<div class="empty-card">
-  <h3>Waiting for analysis</h3>
-  <p>Run a case from the intake tab to see the recommendation, policy match, and action items here.</p>
+<div class="section-card">
+  <h3 class="section-title">Policy-to-Evidence Map</h3>
+  <div class="section-copy">Shows which policy points are supported by the note.</div>
 </div>
 """,
             unsafe_allow_html=True,
         )
+        if st.button("Generate Evidence Map", use_container_width=True):
+            try:
+                st.session_state.evidence_map = run_evidence_map(
+                    st.session_state.procedure,
+                    st.session_state.notes,
+                    st.session_state.policy,
+                    st.session_state.result,
+                    use_mock,
+                )
+            except Exception as exc:
+                st.error(f"Evidence mapping failed: {exc}")
+
+        if st.session_state.evidence_map:
+            evidence_map = st.session_state.evidence_map
+            criteria_col, docs_col = st.columns(2, gap="large")
+            with criteria_col:
+                st.write("Criteria")
+                for item in evidence_map.get("criteria_map", []):
+                    st.markdown(
+                        f"""
+<div class="sub-card">
+  <div class="list-header" style="margin-bottom:0.3rem;">
+    <div class="card-label">Criterion</div>
+    <div class="pill {match_pill('HIGH' if item.get('status') == 'MET' else 'MEDIUM' if item.get('status') == 'PARTIAL' else 'LOW')}">{item.get("status", "MISSING")}</div>
+  </div>
+  <div><strong>{item.get("criterion", "")}</strong></div>
+  <div class="footer-note" style="margin-top:0.45rem;">{item.get("reviewer_note", "")}</div>
+</div>
+""",
+                        unsafe_allow_html=True,
+                    )
+                    if item.get("note_evidence"):
+                        for evidence in item.get("note_evidence", []):
+                            st.write(f"- {evidence}")
+                    else:
+                        st.write("- No direct support found in the note.")
+
+            with docs_col:
+                st.write("Documents")
+                for item in evidence_map.get("documentation_map", []):
+                    status_text = item.get("status", "NOT_FOUND")
+                    pill_class = "pill-approve" if status_text == "FOUND" else "pill-deny"
+                    st.markdown(
+                        f"""
+<div class="sub-card">
+  <div class="list-header" style="margin-bottom:0.3rem;">
+    <div class="card-label">Required document</div>
+    <div class="pill {pill_class}">{status_text}</div>
+  </div>
+  <div><strong>{item.get("document", "")}</strong></div>
+  <div class="footer-note" style="margin-top:0.45rem;">{item.get("evidence", "")}</div>
+</div>
+""",
+                        unsafe_allow_html=True,
+                    )
+
+    else:
+        st.markdown(
+            """
+<div class="empty-card">
+  <h3>Run a case</h3>
+  <p>Decision, routing, and follow-up will appear here.</p>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
